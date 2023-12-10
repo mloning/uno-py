@@ -65,6 +65,7 @@ class Card:
 
 def check_cards(cards: list[Card]) -> list[Card]:
     assert isinstance(cards, list)
+    assert len(cards) > 0
     for card in cards:
         assert isinstance(card, Card)
     return cards
@@ -130,7 +131,7 @@ class Deck:
 
     def refill(self, cards: list[Card]) -> None:
         assert len(self.cards) == 0
-        self.cards.append(cards)
+        self.cards.extend(cards)
         random.shuffle(self.cards)
 
     def __len__(self) -> int:
@@ -200,8 +201,7 @@ class _Strategy:
 
 class RandomStrategy(_Strategy):
     def select_card(self, legal_cards: list[Card], top_card: Card) -> Optional[Card]:
-        assert len(legal_cards) > 0
-
+        legal_cards = check_cards(legal_cards)
         card = random.choice(legal_cards)
         if card.is_wild:
             card.color = self.select_color()
@@ -243,15 +243,11 @@ def filter_legal_cards(cards: list[Card], top_card: Card) -> list[Card]:
     return legal_cards
 
 
-_DEFAULT_STRATEGY = RandomStrategy()
-
-
 class Player:
-    def __init__(
-        self,
-        name: str,
-        strategy: Optional[_Strategy] = _DEFAULT_STRATEGY,
-    ) -> None:
+    def __init__(self, name: str, strategy: Optional[_Strategy] = None) -> None:
+        if not strategy:
+            strategy = RandomStrategy()
+
         self.name = name
         self.strategy = strategy
 
@@ -301,7 +297,6 @@ class Players:
         return itertools.cycle(players)
 
     def reverse(self):
-        # TODO fix reverse
         n_players = len(self.players)
         players = [self.next() for _ in range(n_players)]
         players = reversed(players)
@@ -329,7 +324,7 @@ def is_game_over(player: Player) -> bool:
 
 
 def check_legal(card: Card, playable_cards: list[Card], top_card: Card) -> None:
-    legal_cards = filter_legal_cards(playable_cards, top_card)
+    legal_cards = filter_legal_cards(cards=playable_cards, top_card=top_card)
     assert card in legal_cards
     if card.is_wild:
         assert card.color is not None

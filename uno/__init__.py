@@ -8,17 +8,14 @@ COLORS = ("red", "blue", "green", "yellow")
 
 
 def is_wild(symbol: Optional[str]) -> bool:
-    if symbol:
-        return symbol.startswith("wild")
-    else:
-        False
+    return symbol.startswith("wild") if symbol else False
 
 
 def is_wild_draw_4(symbol: Optional[str]) -> bool:
     return symbol == "wild-draw-4"
 
 
-def is_action(symbol: str) -> bool:
+def is_action(symbol: Optional[str]) -> bool:
     return symbol in ("skip", "reverse", "draw-2", "wild-draw-4")
 
 
@@ -205,11 +202,11 @@ class Dealer:
 class _Strategy:
     def select_card(self, legal_cards: list[Card], top_card: Card) -> Optional[Card]:
         # TODO use entire game state as input instead of just top_card
-        pass
+        raise NotImplementedError("abstract method")
 
     def select_color(self) -> str:
         # TODO use entire game state as input instead of just top_card
-        pass
+        raise NotImplementedError("abstract method")
 
 
 class RandomStrategy(_Strategy):
@@ -233,7 +230,7 @@ def filter_legal_cards(cards: list[Card], top_card: Card) -> list[Card]:
     wild_draw_4_cards = []
     n_color_matches = 0
 
-    def _equal_attr(a: str, b: str) -> bool:
+    def _equal_attr(a: Optional[str], b: Optional[str]) -> bool:
         return (a is not None) and (b is not None) and (a == b)
 
     for card in cards:
@@ -283,6 +280,8 @@ class Player:
         if legal_cards:
             card = self.strategy.select_card(legal_cards=legal_cards, top_card=top_card)
             return card
+        else:
+            return None
 
     def select_color(self) -> str:
         return self.strategy.select_color()
@@ -298,6 +297,8 @@ class Player:
             if len(self.hand) == 1:
                 print(f"{self.name}: Uno!")
             return card
+        else:
+            return None
 
 
 class Players:
@@ -361,20 +362,18 @@ def generate_default_players() -> list[Player]:
 def execute_card_action(card: Card, dealer: Dealer, players: Players) -> None:
     assert card.is_action
 
-    # players cycle changes
+    # change player cycle
     if card.symbol == "reverse":
         players.reverse()
     elif card.symbol == "skip":
         players.skip()
-
-    player = players.next()
-
-    # player hand changes
-    if card.symbol == "draw-2":
-        cards = dealer.draw(n=2)
-        player.take(cards)
-    elif card.symbol == "wild-draw-4":
-        cards = dealer.draw(n=4)
+    # apply penalties
+    # TODO implement stacking
+    elif card.symbol in ("draw-2", "wild-draw-4"):
+        player = players.next()
+        n_lookup = {"draw-2": 2, "wild-draw-4": 4}
+        n = n_lookup[card.symbol]
+        cards = dealer.draw(n=n)
         player.take(cards)
 
 
@@ -426,7 +425,8 @@ class Game:
             playable_cards = [card.copy() for card in player.hand]
             card = player.play(top_card=top_card)
 
-            # if we cannot play any card, we draw a new one; we are allowed to immediately play the new card if possible
+            # if we cannot play any card, we draw a new one; we are allowed to
+            # immediately play the new card if possible
             if not card:
                 new_card = dealer.draw(n=1)
                 player.take(new_card)

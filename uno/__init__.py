@@ -97,8 +97,19 @@ class Pile:
         return self.cards[item]
 
 
-# The 2018 edition of the game consists of 112 cards: 25 in each of four color suits (red, yellow, green, blue), each suit consisting of one zero, two each of 1 through 9, and two each of the action cards "Skip", "Draw Two", and "Reverse". The deck also contains four "Wild" cards, four "Wild Draw Four", one "Wild Shuffle Hands" and three "Wild Customizable".[2] Sets manufactured prior to 2018 do not contain these last two types of Wild cards, for a total of 108 cards in the deck.[6]
 def generate_default_deck() -> list[Card]:
+    """Generate default deck of Uno cards.
+
+    The deck consists of 108 cards in total:
+
+    * four color suits of 25 cards, including one zero, two each of 1 through
+        9, and two each of the action cards "skip", "draw-2" and "reverse"
+    * eight colorless cards, with four "wild" and "will-draw-4" cards
+
+    Returns
+    -------
+    list[Card]
+    """
     numbers = [0, *list(range(1, 10)), *list(range(1, 10))]
     action_symbols = ["reverse", "skip", "draw-2"] * 2
     wild_symbols = ["wild", "wild-draw-4"] * 4
@@ -115,6 +126,7 @@ def generate_default_deck() -> list[Card]:
         card = Card(symbol=symbol)
         cards.append(card)
 
+    assert len(cards) == 108
     return cards
 
 
@@ -371,6 +383,7 @@ class Game:
         self,
         players: Optional[list[Player]] = None,
         n_initial_cards: int = 7,
+        seed: Optional[int] = None,
     ) -> None:
         if not players:
             players = generate_default_players()
@@ -378,8 +391,12 @@ class Game:
         self.players = Players(players=players)
         n_players = len(players)
         self.dealer = Dealer(n_players=n_players, n_initial_cards=n_initial_cards)
+        self.seed = seed
 
     def run(self) -> None:
+        if self.seed:
+            random.seed(self.seed)
+
         # initialize players' hands
         players = self.players
         dealer = self.dealer
@@ -424,10 +441,3 @@ class Game:
                     break
                 if card.is_action:
                     execute_card_action(card=card, dealer=dealer, players=players)
-
-
-# main
-if __name__ == "__main__":
-    # random.seed(47)
-    game = Game()
-    game.run()

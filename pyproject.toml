@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "uno"
+version = "0.1.0"
+description = "Python implementation of Uno card game"
+authors = ["mloning <21020482+mloning@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pytest = "^7.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

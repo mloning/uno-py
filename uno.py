@@ -171,6 +171,7 @@ class Dealer:
             cards = self.deck.draw(n=n_available)
             all_cards.extend(cards)
 
+            print("Reclying pile ...")
             cards = self.pile.recycle()
             self.deck.refill(cards)
 
@@ -297,6 +298,7 @@ class Players:
         return itertools.cycle(players)
 
     def reverse(self):
+        # TODO simplify reverse
         n_players = len(self.players)
         players = [self.next() for _ in range(n_players)]
         players = reversed(players)
@@ -304,6 +306,7 @@ class Players:
         print("Players reversed")
 
     def skip(self) -> None:
+        # TODO fix skip
         player = self.next()
         print(f"{player.name} skipped")
 
@@ -387,7 +390,7 @@ class Game:
             player.take(hand)
 
         # first turn
-        print("First turn ...")
+        print("Flip initial card ...")
         dealer.flip_initial_card()
         card = dealer.get_top_card()
         if card.is_wild:
@@ -398,30 +401,29 @@ class Game:
             execute_card_action(card=card, dealer=dealer, players=players)
 
         # take turns
+        print("Take turns ...")
         while True:
-            # breakpoint()
             player = players.next()
+            print(len(dealer.deck), len(dealer.pile))
             top_card = dealer.get_top_card()
             playable_cards = [card.copy() for card in player.hand]
             card = player.play(top_card=top_card)
+
+            # if we cannot play any card, we draw a new one; we are allowed to immediately play the new card if possible
+            if not card:
+                new_card = dealer.draw(n=1)
+                player.take(new_card)
+                playable_cards = new_card
+                card = player.play(top_card=top_card, playable_cards=playable_cards)
+
             if card:
                 check_legal(card=card, top_card=top_card, playable_cards=playable_cards)
                 dealer.discard(card)
+                if is_game_over(player=player):
+                    print(f"{player.name} won!")
+                    break
                 if card.is_action:
                     execute_card_action(card=card, dealer=dealer, players=players)
-            else:
-                card = dealer.draw(n=1)
-                player.take(card)
-                card = player.play(top_card=top_card, playable_cards=card)
-                if card:
-                    check_legal(card=card, top_card=top_card, playable_cards=[card])
-                    dealer.discard(card)
-                    if card.is_action:
-                        execute_card_action(card=card, dealer=dealer, players=players)
-
-            if is_game_over(player=player):
-                print(f"{player.name} won!")
-                break
 
 
 # main

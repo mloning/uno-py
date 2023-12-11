@@ -1,5 +1,6 @@
 from uno import Game
 from argparse import ArgumentParser, Namespace
+import random
 
 
 def parse_args() -> Namespace:
@@ -10,7 +11,10 @@ def parse_args() -> Namespace:
 
 def main() -> None:
     args = parse_args()
-    game = Game(seed=args.seed)
+    if args.seed:
+        random.seed(args.seed)
+
+    game = Game()
     game.run()
 
 

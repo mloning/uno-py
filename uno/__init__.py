@@ -1,10 +1,16 @@
 from typing import Optional
 import random
 import itertools
-from dataclasses import dataclass
 
 
 COLORS = ("red", "blue", "green", "yellow")
+COLOR_CODES = {
+    "red": "\033[31m",
+    "blue": "\033[34m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "wild": "\033[35m",
+}
 
 
 def is_wild(symbol: Optional[str]) -> bool:
@@ -34,14 +40,13 @@ def check_card_args(
             assert color is None
 
 
-@dataclass
 class Card:
     def __init__(
         self,
         color: Optional[str] = None,
         number: Optional[str] = None,
         symbol: Optional[str] = None,
-    ):
+    ) -> None:
         check_card_args(color=color, number=number, symbol=symbol)
         self.color = color
         self.number = number
@@ -56,8 +61,24 @@ class Card:
     def copy(self):
         return type(self)(**self._init_kwargs)
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Card):
+            return False
+
+        if self.is_wild:
+            return self.symbol == other.symbol
+        else:
+            return (
+                (self.color == other.color)
+                and (self.number == other.number)
+                and (self.symbol == other.symbol)
+            )
+
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.color},{self.number},{self.symbol})"
+        color = self.color or "wild"
+        color_code = COLOR_CODES[color]
+        value = self.number or self.symbol
+        return f"{color_code}{value}\033[0m"
 
 
 def check_cards(cards: list[Card]) -> list[Card]:
@@ -194,9 +215,7 @@ class Dealer:
 
     def get_top_card(self) -> Card:
         assert len(self.pile) > 0
-        top_card = self.pile[-1]
-        print(f"Top card: {top_card}")
-        return top_card
+        return self.pile[-1]
 
 
 class _Strategy:
@@ -272,8 +291,8 @@ class Player:
     def select_card(
         self, top_card: Card, playable_cards: Optional[list[Card]] = None
     ) -> Optional[Card]:
-        assert len(self.hand) > 0
         if not playable_cards:
+            assert len(self.hand) > 0
             playable_cards = self.hand
 
         legal_cards = filter_legal_cards(cards=self.hand, top_card=top_card)
@@ -289,11 +308,12 @@ class Player:
     def play(
         self, top_card: Card, playable_cards: Optional[list[Card]] = None
     ) -> Optional[Card]:
-        assert self.hand is not None
+        print(self.hand)
         card = self.select_card(top_card=top_card, playable_cards=playable_cards)
         if card:
             self.hand.remove(card)
             print(f"{self.name} played: {card}")
+            print(self.hand)
             if len(self.hand) == 1:
                 print(f"{self.name}: Uno!")
             return card
@@ -301,38 +321,47 @@ class Player:
             return None
 
 
+def create_player_cycle(players: list[Player]):
+    return itertools.cycle(players)
+
+
 class Players:
     def __init__(self, players: list[Player]) -> None:
         self.players = check_players(players)
-        self.cycle = self._create_cycle(players)
+        self.cycle = create_player_cycle(players)
+        self.is_reversed = False
 
-    @staticmethod
-    def _create_cycle(players: list[Player]):
-        return itertools.cycle(players)
+    def reverse(self) -> None:
+        players = self.players
 
-    def reverse(self):
-        # TODO simplify reverse
-        n_players = len(self.players)
-        players = [self.next() for _ in range(n_players)]
-        players = reversed(players)
-        self.cycle = self._create_cycle(players)
-        print("Players reversed")
+        # get index of current player
+        next = self.next()
+        current = players.index(next)
+        if self.is_reversed:
+            current += 2
+        else:
+            current -= 1
+
+        # rotate list to start with previous player, see deque.rotate()
+        players = players[current:] + players[:current]
+
+        # reverse player cycle
+        if not self.is_reversed:
+            players = reversed(players)
+
+        # reset player cycle
+        self.cycle = create_player_cycle(players)
+        self.is_reversed = True if not self.is_reversed else False
 
     def skip(self) -> None:
-        # TODO fix skip
-        player = self.next()
-        print(f"{player.name} skipped")
+        self.next()
 
     def first(self) -> Player:
         return self.players[0]
 
     def next(self) -> Player:
         player = next(self.cycle)
-        print(f"{player.name}’s turn ...")
         return player
-
-    def __iter__(self):
-        yield from self.players
 
 
 def is_game_over(player: Player) -> bool:
@@ -348,7 +377,7 @@ def check_legal(card: Card, playable_cards: list[Card], top_card: Card) -> None:
 
 def check_players(players: list[Player]) -> list[Player]:
     assert isinstance(players, list)
-    assert 2 <= len(players) <= 4
+    assert 2 <= len(players) <= 5
     for player in players:
         assert isinstance(player, Player)
     return players
@@ -382,7 +411,6 @@ class Game:
         self,
         players: Optional[list[Player]] = None,
         n_initial_cards: int = 7,
-        seed: Optional[int] = None,
     ) -> None:
         if not players:
             players = generate_default_players()
@@ -390,19 +418,15 @@ class Game:
         self.players = Players(players=players)
         n_players = len(players)
         self.dealer = Dealer(n_players=n_players, n_initial_cards=n_initial_cards)
-        self.seed = seed
 
     def run(self) -> None:
-        if self.seed:
-            random.seed(self.seed)
-
         # initialize players' hands
         players = self.players
         dealer = self.dealer
 
         print("Drawing initial hands ...")
         hands = dealer.draw_initial_hands()
-        for player, hand in zip(players, hands):
+        for player, hand in zip(players.players, hands):
             player.take(hand)
 
         # first turn
@@ -420,9 +444,13 @@ class Game:
         print("Take turns ...")
         while True:
             player = players.next()
-            print(len(dealer.deck), len(dealer.pile))
             top_card = dealer.get_top_card()
+            print(
+                f"Turn: {player.name} ({top_card=}, n_deck={len(dealer.deck)}, "
+                f"n_pile={len(dealer.pile)})"
+            )
             playable_cards = [card.copy() for card in player.hand]
+
             card = player.play(top_card=top_card)
 
             # if we cannot play any card, we draw a new one; we are allowed to
@@ -437,7 +465,7 @@ class Game:
                 check_legal(card=card, top_card=top_card, playable_cards=playable_cards)
                 dealer.discard(card)
                 if is_game_over(player=player):
-                    print(f"{player.name} won!")
+                    print(f"Game over. Player: {player.name} won!")
                     break
                 if card.is_action:
                     execute_card_action(card=card, dealer=dealer, players=players)

@@ -71,7 +71,7 @@ class Card:
             return (
                 (self.color == other.color)
                 and (self.number == other.number)
-                and (self.symbol == self.symbol)
+                and (self.symbol == other.symbol)
             )
 
     def __repr__(self) -> str:
@@ -243,6 +243,22 @@ class RandomStrategy(_Strategy):
         return random.choice(COLORS)
 
 
+class HumanInput(_Strategy):
+    def select_card(self, legal_cards: Cards, top_card: Card) -> Optional[Card]:
+        options = [None, *legal_cards]
+        print(f"Options: {[(index, card) for index, card in enumerate(options)]}")
+        index = int(input("Select index: "))
+        card = options[index]
+        if card and card.is_wild:
+            card.color = self.select_color()
+        return card
+
+    def select_color(self) -> str:
+        print(f"Colors: {[(index, color) for index, color in enumerate(COLORS)]}")
+        index = int(input("Select index: "))
+        return COLORS[index]
+
+
 def filter_legal_cards(cards: Cards, top_card: Card) -> Cards:
     # match color or number or symbol
     # wild cards
@@ -299,6 +315,8 @@ class Player:
     ) -> Optional[Card]:
         if not playable_cards:
             playable_cards = self.hand
+        else:
+            check_cards(playable_cards)
 
         legal_cards = filter_legal_cards(cards=playable_cards, top_card=top_card)
         if legal_cards:
@@ -367,8 +385,10 @@ class Players:
         )
 
     def first(self) -> Player:
-        # TODO shuffle player order before starting
         return self.players[0]
+
+    def __len__(self) -> int:
+        return len(self.players)
 
 
 def is_game_over(player: Player) -> bool:
@@ -390,9 +410,25 @@ def check_players(players: list[Player]) -> list[Player]:
     return players
 
 
-def generate_default_players() -> list[Player]:
-    names = ("A", "B", "C", "D")
-    return [Player(name) for name in names]
+def generate_players(n_players: int = 4, human_player: Optional[str] = None) -> Players:
+    assert 2 <= n_players <= 5
+    n_human_players = 1 if human_player else 0
+    assert n_human_players <= n_players
+    n_computer_players = n_players - n_human_players
+
+    names = ("A", "B", "C", "D", "E")
+    players = []
+    for i in range(n_computer_players):
+        name = names[i]
+        player = Player(name=name)
+        players.append(player)
+
+    if human_player:
+        player = Player(name=human_player, strategy=HumanInput())
+        players.append(player)
+
+    random.shuffle(players)
+    return Players(players)
 
 
 def execute_card_action(card: Card, dealer: Dealer, players: Players) -> None:
@@ -433,14 +469,11 @@ def print_turn_info(players: Players, dealer: Dealer) -> None:
 class Game:
     def __init__(
         self,
-        players: Optional[list[Player]] = None,
+        human_player: Optional[str] = None,
         n_initial_cards: int = 7,
     ) -> None:
-        if not players:
-            players = generate_default_players()
-
-        self.players = Players(players=players)
-        n_players = len(players)
+        self.players = generate_players(human_player=human_player)
+        n_players = len(self.players)
         self.dealer = Dealer(n_players=n_players, n_initial_cards=n_initial_cards)
 
     def run(self) -> None:

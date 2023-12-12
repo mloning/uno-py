@@ -298,10 +298,9 @@ class Player:
         self, top_card: Card, playable_cards: Optional[Cards] = None
     ) -> Optional[Card]:
         if not playable_cards:
-            assert len(self.hand) > 0
             playable_cards = self.hand
 
-        legal_cards = filter_legal_cards(cards=self.hand, top_card=top_card)
+        legal_cards = filter_legal_cards(cards=playable_cards, top_card=top_card)
         if legal_cards:
             card = self.strategy.select_card(legal_cards=legal_cards, top_card=top_card)
             return card

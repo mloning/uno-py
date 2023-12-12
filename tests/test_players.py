@@ -1,7 +1,7 @@
 from uno import Player, Players
 
 
-def _generate_test_players(n_players: int = 3) -> list[Player]:
+def _generate_test_players(n_players: int = 3) -> Players:
     players = [Player(name=str(i)) for i in range(1, n_players + 1)]
     return Players(players)
 

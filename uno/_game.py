@@ -260,6 +260,7 @@ class HumanInput(_Strategy):
 
 
 def filter_legal_cards(cards: Cards, top_card: Card) -> Cards:
+    # TODO handle duplicate cards, return unique set of cards
     # match color or number or symbol
     # wild cards
     # wild-draw-4 cards if no color match

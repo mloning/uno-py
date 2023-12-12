@@ -1,14 +1,10 @@
-from uno import generate_default_deck, Player, Cards
+from uno import generate_default_deck, Player
 from copy import deepcopy
-
-
-def generate_hand() -> Cards:
-    return generate_default_deck()
 
 
 def test_play_removes_card_from_hand() -> None:
     player = Player(name="Test player")
-    hand = generate_hand()
+    hand = generate_default_deck()
     player.take(deepcopy(hand))
 
     for i, card in enumerate(hand, start=1):

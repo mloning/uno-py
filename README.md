@@ -4,5 +4,5 @@ For details of Uno, see [wikipedia](<https://en.m.wikipedia.org/wiki/Uno_(card_g
 
 ## How to play
 
-* Install Python library
-* Run: `python app.py`
+* Install Python library: `poetry install`
+* Play: `poetry run python app.py --player <your-name>`

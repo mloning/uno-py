@@ -2,7 +2,8 @@ from typing import Iterator, Optional
 import random
 import itertools
 
-
+N_MIN_PLAYERS = 2
+N_MAX_PLAYERS = 5
 COLORS = ("red", "blue", "green", "yellow")
 COLOR_CODES = {
     "red": "\033[31m",
@@ -59,6 +60,8 @@ class Card:
         self._init_kwargs = {"color": color, "number": number, "symbol": symbol}
 
     def copy(self):
+        # return a new card with the original constructor arguments, ignoring the color
+        # attribute set in wild cards after construction
         return type(self)(**self._init_kwargs)
 
     def __eq__(self, other: object) -> bool:
@@ -84,11 +87,16 @@ class Card:
 Cards = list[Card]
 
 
+def check_card(card: Card) -> Card:
+    assert isinstance(card, Card)
+    return card
+
+
 def check_cards(cards: Cards) -> Cards:
     assert isinstance(cards, list)
     assert len(cards) > 0
     for card in cards:
-        assert isinstance(card, Card)
+        check_card(card)
     return cards
 
 
@@ -97,12 +105,16 @@ class Pile:
         self.cards: Cards = []
 
     def append(self, card: Card) -> None:
+        card = check_card(card)
         self.cards.append(card)
 
     def recycle(self) -> Cards:
         # return all cards in pile except top card
         assert len(self.cards) > 0
         top_card = self.cards.pop(-1)
+
+        # create new copies of cards, resetting the color attribute set
+        # on wild cards
         cards = [card.copy() for card in self.cards]
 
         # restart pile with top card
@@ -151,12 +163,22 @@ def generate_default_deck() -> Cards:
     return cards
 
 
+def check_int(x: int, min: Optional[int] = None, max: Optional[int] = None) -> int:
+    assert isinstance(x, int)
+    if min:
+        assert x >= min
+    if max:
+        assert x <= max
+    return x
+
+
 class Deck:
     def __init__(self) -> None:
         self.cards = generate_default_deck()
         random.shuffle(self.cards)
 
     def draw(self, n: int = 1) -> Cards:
+        n = check_int(n, min=1)
         assert len(self.cards) >= n
         cards = self.cards[-n:]
         del self.cards[-n:]
@@ -164,6 +186,7 @@ class Deck:
 
     def refill(self, cards: Cards) -> None:
         assert len(self.cards) == 0
+        cards = check_cards(cards)
         self.cards.extend(cards)
         random.shuffle(self.cards)
 
@@ -179,8 +202,8 @@ class Dealer:
         self.deck = Deck()
         self.pile = Pile()
 
-        self.n_players = n_players
-        self.n_initial_cards = n_initial_cards
+        self.n_players = check_int(n_players, min=2, max=5)
+        self.n_initial_cards = check_int(n_initial_cards, min=7, max=7)
 
     def flip_initial_card(self) -> None:
         card = self.draw(n=1)[0]
@@ -194,6 +217,7 @@ class Dealer:
         return hands
 
     def draw(self, n: int = 1) -> Cards:
+        n = check_int(n, min=1)
         n_available = len(self.deck)
         if n <= n_available:
             return self.deck.draw(n=n)
@@ -213,7 +237,7 @@ class Dealer:
             return all_cards
 
     def discard(self, card: Card) -> None:
-        assert isinstance(card, Card)
+        card = check_card(card)
         self.pile.append(card)
 
     def get_top_card(self) -> Card:
@@ -234,6 +258,8 @@ class _Strategy:
 class RandomStrategy(_Strategy):
     def select_card(self, legal_cards: Cards, top_card: Card) -> Optional[Card]:
         legal_cards = check_cards(legal_cards)
+        top_card = check_card(top_card)
+
         card = random.choice(legal_cards)
         if card.is_wild:
             card.color = self.select_color()
@@ -245,6 +271,9 @@ class RandomStrategy(_Strategy):
 
 class HumanInput(_Strategy):
     def select_card(self, legal_cards: Cards, top_card: Card) -> Optional[Card]:
+        legal_cards = check_cards(legal_cards)
+        top_card = check_card(top_card)
+
         options = [None, *legal_cards]
         print(f"Options: {[(index, card) for index, card in enumerate(options)]}")
         index = int(input("Select index: "))
@@ -264,6 +293,8 @@ def filter_legal_cards(cards: Cards, top_card: Card) -> Cards:
     # match color or number or symbol
     # wild cards
     # wild-draw-4 cards if no color match
+    cards = check_cards(cards)
+    top_card = check_card(top_card)
 
     legal_cards = []
     wild_draw_4_cards = []
@@ -281,6 +312,7 @@ def filter_legal_cards(cards: Cards, top_card: Card) -> Cards:
         is_symbol = _is_equal_and_not_none(card.symbol, top_card.symbol)
         is_color = _is_equal_and_not_none(card.color, top_card.color)
         is_wild = card.symbol == "wild"
+
         if is_number or is_color or is_symbol or is_wild:
             legal_cards.append(card)
 
@@ -318,6 +350,7 @@ class Player:
             playable_cards = self.hand
         else:
             check_cards(playable_cards)
+        top_card = check_card(top_card)
 
         legal_cards = filter_legal_cards(cards=playable_cards, top_card=top_card)
         if legal_cards:
@@ -393,6 +426,7 @@ class Players:
 
 
 def is_game_over(player: Player) -> bool:
+    assert isinstance(player, Player)
     return len(player.hand) == 0
 
 
@@ -405,14 +439,14 @@ def check_legal(card: Card, playable_cards: Cards, top_card: Card) -> None:
 
 def check_players(players: list[Player]) -> list[Player]:
     assert isinstance(players, list)
-    assert 2 <= len(players) <= 5
+    assert N_MIN_PLAYERS <= len(players) <= N_MAX_PLAYERS
     for player in players:
         assert isinstance(player, Player)
     return players
 
 
 def generate_players(n_players: int = 4, human_player: Optional[str] = None) -> Players:
-    assert 2 <= n_players <= 5
+    assert N_MIN_PLAYERS <= n_players <= N_MAX_PLAYERS
     n_human_players = 1 if human_player else 0
     assert n_human_players <= n_players
     n_computer_players = n_players - n_human_players
@@ -433,7 +467,10 @@ def generate_players(n_players: int = 4, human_player: Optional[str] = None) -> 
 
 
 def execute_card_action(card: Card, dealer: Dealer, players: Players) -> None:
+    card = check_card(card)
     assert card.is_action
+    assert isinstance(dealer, Dealer)
+    assert isinstance(players, Players)
 
     # change player cycle
     if card.symbol == "reverse":
@@ -474,8 +511,9 @@ class Game:
         n_initial_cards: int = 7,
     ) -> None:
         self.players = generate_players(human_player=human_player)
-        n_players = len(self.players)
-        self.dealer = Dealer(n_players=n_players, n_initial_cards=n_initial_cards)
+        self.dealer = Dealer(
+            n_players=len(self.players), n_initial_cards=n_initial_cards
+        )
 
     def run(self) -> None:
         print("Running Uno ...")

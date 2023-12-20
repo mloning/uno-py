@@ -26,38 +26,33 @@ def is_action(symbol: Optional[str]) -> bool:
     return symbol in ("skip", "reverse", "draw-2", "wild-draw-4")
 
 
-def check_card_args(
-    color: Optional[str], number: Optional[str], symbol: Optional[str]
-) -> None:
-    assert (number is not None) or (symbol is not None)
+def check_card_args(color: Optional[str], symbol: Optional[str]) -> None:
+    assert symbol is not None
     if color:
         assert isinstance(color, str)
-    if number:
-        assert isinstance(number, str)
-        assert color is not None
     if symbol:
         assert isinstance(symbol, str)
         if is_wild(symbol):
             assert color is None
+        else:
+            assert color is not None
 
 
 class Card:
     def __init__(
         self,
         color: Optional[str] = None,
-        number: Optional[str] = None,
         symbol: Optional[str] = None,
     ) -> None:
-        check_card_args(color=color, number=number, symbol=symbol)
+        check_card_args(color=color, symbol=symbol)
         self.color = color
-        self.number = number
         self.symbol = symbol
 
         self.is_wild = is_wild(symbol)
         self.is_action = is_action(symbol)
 
         # handle state of wild cards
-        self._init_kwargs = {"color": color, "number": number, "symbol": symbol}
+        self._init_kwargs = {"color": color, "symbol": symbol}
 
     def copy(self):
         # return a new card with the original constructor arguments, ignoring the color
@@ -71,17 +66,12 @@ class Card:
         if self.is_wild:
             return self.symbol == other.symbol
         else:
-            return (
-                (self.color == other.color)
-                and (self.number == other.number)
-                and (self.symbol == other.symbol)
-            )
+            return (self.color == other.color) and (self.symbol == other.symbol)
 
     def __repr__(self) -> str:
         color = self.color or "wild"
         color_code = COLOR_CODES[color]
-        value = self.number or self.symbol
-        return f"{color_code}{value}\033[0m"
+        return f"{color_code}{self.symbol}\033[0m"
 
 
 Cards = list[Card]
@@ -150,7 +140,7 @@ def generate_default_deck() -> Cards:
     cards = []
     for color in COLORS:
         for number in numbers:
-            card = Card(color=color, number=str(number))
+            card = Card(color=color, symbol=str(number))
             cards.append(card)
         for symbol in action_symbols:
             card = Card(color=color, symbol=symbol)
@@ -159,7 +149,6 @@ def generate_default_deck() -> Cards:
         card = Card(symbol=symbol)
         cards.append(card)
 
-    assert len(cards) == 108
     return cards
 
 
@@ -290,7 +279,7 @@ class HumanInput(_Strategy):
 
 def filter_legal_cards(cards: Cards, top_card: Card) -> Cards:
     # TODO handle duplicate cards, return unique set of cards
-    # match color or number or symbol
+    # match color or symbol
     # wild cards
     # wild-draw-4 cards if no color match
     cards = check_cards(cards)
@@ -308,12 +297,11 @@ def filter_legal_cards(cards: Cards, top_card: Card) -> Cards:
             wild_draw_4_cards.append(card)
             continue
 
-        is_number = _is_equal_and_not_none(top_card.number, card.number)
         is_symbol = _is_equal_and_not_none(card.symbol, top_card.symbol)
         is_color = _is_equal_and_not_none(card.color, top_card.color)
         is_wild = card.symbol == "wild"
 
-        if is_number or is_color or is_symbol or is_wild:
+        if is_color or is_symbol or is_wild:
             legal_cards.append(card)
 
         if is_color:

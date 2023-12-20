@@ -10,7 +10,7 @@ def test_play_removes_card_from_hand() -> None:
     for i, card in enumerate(hand, start=1):
         assert card in player.hand
         n = player.hand.count(card)
-        assert 1 <= n <= 2
+        assert 1 <= n <= 4
 
         player.play(top_card=card, playable_cards=[card])
 

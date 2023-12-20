@@ -11,10 +11,10 @@ from uno import Card
         (Card("yellow", "skip"), Card("yellow", "skip"), True),
         (Card("green", "1"), Card("red", "1"), False),
         (Card("red", "2"), Card("blue", "2"), False),
-        (Card("yellow", None, "reverse"), Card("green", None, "reverse"), False),
-        (Card("blue", None, "skip"), Card("yellow", None, "skip"), False),
-        (Card(None, None, "wild"), Card(None, None, "wild"), True),
-        (Card(None, None, "wild-draw-4"), Card(None, None, "wild"), False),
+        (Card("yellow", "reverse"), Card("green", "reverse"), False),
+        (Card("blue", "skip"), Card("yellow", "skip"), False),
+        (Card(None, "wild"), Card(None, "wild"), True),
+        (Card(None, "wild-draw-4"), Card(None, "wild"), False),
     ],
 )
 def test_card_equality(a, b, expected) -> None:
@@ -23,9 +23,7 @@ def test_card_equality(a, b, expected) -> None:
 
 
 def test_card_equality_ignores_color_for_wild_cards() -> None:
-    a = Card(None, None, "wild")
-
-    b = Card(None, None, "wild")
+    a = Card(None, "wild")
+    b = Card(None, "wild")
     b.color = "red"
-
     assert a == b
